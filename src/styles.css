@@ -61,6 +61,11 @@ body {
   color: var(--text);
 }
 
+::selection {
+  background: rgba(56, 189, 248, 0.35);
+  color: inherit;
+}
+
 button {
   border: 0;
   border-radius: 999px;
@@ -259,6 +264,7 @@ button:active {
   resize: none;
   outline: none;
   font: 15px/1.7 var(--font-mono);
+  user-select: text;
 }
 
 #editor:focus {
@@ -270,6 +276,8 @@ button:active {
   overflow: auto;
   padding: 1.2rem 1.35rem;
   line-height: 1.75;
+  user-select: text;
+  cursor: text;
 }
 
 .preview > :first-child {

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
@@ -15,6 +15,67 @@ function toFilePayload(filePath, content = '') {
   };
 }
 
+function buildApplicationMenu() {
+  return Menu.buildFromTemplate([
+    {
+      label: 'Archivo',
+      submenu: [
+        { role: 'quit', label: 'Salir' }
+      ]
+    },
+    {
+      label: 'Edición',
+      submenu: [
+        { role: 'undo', label: 'Deshacer' },
+        { role: 'redo', label: 'Rehacer' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cortar' },
+        { role: 'copy', label: 'Copiar' },
+        { role: 'paste', label: 'Pegar' },
+        { role: 'selectAll', label: 'Seleccionar todo' }
+      ]
+    },
+    {
+      label: 'Ver',
+      submenu: [
+        { role: 'reload', label: 'Recargar' },
+        { role: 'forceReload', label: 'Forzar recarga' },
+        { role: 'toggleDevTools', label: 'Herramientas de desarrollo' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Zoom normal' },
+        { role: 'zoomIn', label: 'Acercar' },
+        { role: 'zoomOut', label: 'Alejar' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Pantalla completa' }
+      ]
+    }
+  ]);
+}
+
+function attachContextMenu(mainWindow) {
+  mainWindow.webContents.on('context-menu', (_, params) => {
+    const menuTemplate = [];
+
+    if (params.editFlags.canCut) {
+      menuTemplate.push({ role: 'cut', label: 'Cortar' });
+    }
+
+    if (params.editFlags.canCopy || params.selectionText) {
+      menuTemplate.push({ role: 'copy', label: 'Copiar' });
+    }
+
+    if (params.editFlags.canPaste) {
+      menuTemplate.push({ role: 'paste', label: 'Pegar' });
+    }
+
+    if (menuTemplate.length === 0) {
+      menuTemplate.push({ role: 'selectAll', label: 'Seleccionar todo' });
+    }
+
+    Menu.buildFromTemplate(menuTemplate).popup({ window: mainWindow });
+  });
+}
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1440,
@@ -22,7 +83,6 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 760,
     backgroundColor: '#08111f',
-    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -30,6 +90,8 @@ function createWindow() {
     }
   });
 
+  mainWindow.setMenuBarVisibility(true);
+  attachContextMenu(mainWindow);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 }
 
@@ -97,6 +159,7 @@ ipcMain.handle('markdown:createFile', async () => {
 });
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(buildApplicationMenu());
   createWindow();
 
   app.on('activate', () => {
