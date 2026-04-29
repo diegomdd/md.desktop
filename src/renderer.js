@@ -1,116 +1,162 @@
+const INITIAL_CONTENT = '# md.desktop\n\nAbrí un archivo `.md` o creá uno nuevo para empezar.';
+
 const state = {
-  folderPath: '',
-  files: [],
-  activeFile: null
+  theme: localStorage.getItem('md.desktop.theme') || 'dark',
+  activeFile: null,
+  content: INITIAL_CONTENT,
+  dirty: false
 };
 
 const elements = {
-  openFolder: document.getElementById('open-folder'),
+  body: document.body,
+  openFile: document.getElementById('open-file'),
   newFile: document.getElementById('new-file'),
   saveFile: document.getElementById('save-file'),
-  fileList: document.getElementById('file-list'),
-  folderPath: document.getElementById('folder-path'),
+  toggleTheme: document.getElementById('toggle-theme'),
   currentFile: document.getElementById('current-file'),
+  filePath: document.getElementById('file-path'),
   status: document.getElementById('status'),
   editor: document.getElementById('editor'),
-  preview: document.getElementById('preview')
+  preview: document.getElementById('preview'),
+  wordCount: document.getElementById('word-count'),
+  charCount: document.getElementById('char-count'),
+  themeBadge: document.getElementById('theme-badge'),
+  saveBadge: document.getElementById('save-badge')
 };
 
+marked.setOptions({ breaks: true, gfm: true });
+
+function updateMetrics(content) {
+  const trimmed = content.trim();
+  const words = trimmed ? trimmed.split(/\s+/).length : 0;
+  elements.wordCount.textContent = String(words);
+  elements.charCount.textContent = String(content.length);
+}
+
 function renderPreview(markdown) {
-  elements.preview.innerHTML = window.marked.parse(markdown || '');
+  elements.preview.innerHTML = marked.parse(markdown || '');
+  updateMetrics(markdown || '');
 }
 
-function setStatus(message, isSuccess = false) {
+function setStatus(message, tone = 'neutral') {
   elements.status.textContent = message;
-  elements.status.style.color = isSuccess ? '#22c55e' : '#94a3b8';
+  elements.status.dataset.tone = tone;
 }
 
-function renderFileList() {
-  elements.fileList.innerHTML = '';
-
-  state.files.forEach((file) => {
-    const item = document.createElement('li');
-    const button = document.createElement('button');
-
-    button.textContent = file.relativePath;
-    button.className = state.activeFile?.path === file.path ? 'is-active' : '';
-    button.addEventListener('click', () => openFile(file));
-
-    item.appendChild(button);
-    elements.fileList.appendChild(item);
-  });
+function updateDirtyState(isDirty) {
+  state.dirty = isDirty;
+  elements.saveBadge.textContent = isDirty ? 'Cambios sin guardar' : 'Todo guardado';
+  elements.saveBadge.classList.toggle('badge--warning', isDirty);
 }
 
-async function openFile(file) {
-  const content = await window.mdDesktop.readFile(file.path);
-  state.activeFile = file;
-  elements.currentFile.textContent = file.relativePath;
+function applyTheme(theme) {
+  state.theme = theme;
+  elements.body.dataset.theme = theme;
+  elements.toggleTheme.textContent = theme === 'dark' ? '🌙' : '☀️';
+  elements.themeBadge.textContent = theme === 'dark' ? 'Modo oscuro' : 'Modo claro';
+  localStorage.setItem('md.desktop.theme', theme);
+}
+
+function updateFileHeader() {
+  if (!state.activeFile) {
+    elements.currentFile.textContent = 'Sin archivo abierto';
+    elements.filePath.textContent = 'Abrí un archivo .md o creá uno nuevo para empezar.';
+    return;
+  }
+
+  elements.currentFile.textContent = state.activeFile.name;
+  elements.filePath.textContent = state.activeFile.path;
+}
+
+function hydrateEditor(content) {
+  state.content = content;
   elements.editor.value = content;
   renderPreview(content);
-  setStatus(`Editando ${file.name}`);
-  renderFileList();
 }
 
-async function handlePickFolder() {
-  const result = await window.mdDesktop.pickFolder();
+function openPayload(payload, successMessage) {
+  state.activeFile = {
+    name: payload.name,
+    path: payload.path,
+    directory: payload.directory
+  };
 
-  if (!result) {
-    setStatus('Selección cancelada.');
-    return;
-  }
-
-  state.folderPath = result.folderPath;
-  state.files = result.files;
-  state.activeFile = null;
-
-  elements.folderPath.textContent = result.folderPath;
-  elements.currentFile.textContent = 'Seleccioná un archivo';
-  elements.editor.value = '';
-  renderPreview('');
-  renderFileList();
-  setStatus(`Carpeta abierta con ${result.files.length} archivo(s) Markdown.`, true);
+  updateFileHeader();
+  hydrateEditor(payload.content);
+  updateDirtyState(false);
+  setStatus(successMessage, 'success');
 }
 
-async function handleSave() {
-  if (!state.activeFile) {
-    setStatus('Primero abrí un archivo.');
-    return;
-  }
+async function handleOpenFile() {
+  try {
+    const payload = await window.mdDesktop.openMarkdownFile();
 
-  await window.mdDesktop.saveFile(state.activeFile.path, elements.editor.value);
-  renderPreview(elements.editor.value);
-  setStatus('Archivo guardado.', true);
+    if (!payload) {
+      setStatus('Apertura cancelada.', 'neutral');
+      return;
+    }
+
+    openPayload(payload, `Abierto ${payload.name}`);
+  } catch (error) {
+    setStatus(`No se pudo abrir el archivo: ${error.message}`, 'danger');
+  }
 }
 
 async function handleCreateFile() {
-  if (!state.folderPath) {
-    setStatus('Primero abrí una carpeta.');
-    return;
-  }
-
-  const fileName = window.prompt('Nombre del archivo Markdown');
-
-  if (!fileName) {
-    setStatus('Creación cancelada.');
-    return;
-  }
-
   try {
-    const file = await window.mdDesktop.createFile(state.folderPath, fileName.trim());
-    state.files = [...state.files, file].sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-    renderFileList();
-    await openFile(file);
-    setStatus('Archivo creado.', true);
+    const payload = await window.mdDesktop.createFile();
+
+    if (!payload) {
+      setStatus('Creación cancelada.', 'neutral');
+      return;
+    }
+
+    openPayload(payload, `Nuevo archivo creado: ${payload.name}`);
   } catch (error) {
-    setStatus(`No se pudo crear el archivo: ${error.message}`);
+    setStatus(`No se pudo crear el archivo: ${error.message}`, 'danger');
   }
 }
 
-elements.openFolder.addEventListener('click', handlePickFolder);
-elements.saveFile.addEventListener('click', handleSave);
+async function handleSave() {
+  try {
+    const content = elements.editor.value;
+
+    if (state.activeFile?.path) {
+      const payload = await window.mdDesktop.saveFile(state.activeFile.path, content);
+      openPayload(payload, 'Archivo guardado.');
+      return;
+    }
+
+    const payload = await window.mdDesktop.saveAsFile('nuevo-documento.md', content);
+
+    if (!payload) {
+      setStatus('Guardado cancelado.', 'neutral');
+      return;
+    }
+
+    openPayload(payload, 'Archivo guardado.');
+  } catch (error) {
+    setStatus(`No se pudo guardar el archivo: ${error.message}`, 'danger');
+  }
+}
+
+elements.openFile.addEventListener('click', handleOpenFile);
 elements.newFile.addEventListener('click', handleCreateFile);
-elements.editor.addEventListener('input', (event) => {
-  renderPreview(event.target.value);
+elements.saveFile.addEventListener('click', handleSave);
+elements.toggleTheme.addEventListener('click', () => {
+  applyTheme(state.theme === 'dark' ? 'light' : 'dark');
 });
 
-renderPreview('## md.desktop\n\nAbrí una carpeta para empezar.');
+elements.editor.addEventListener('input', (event) => {
+  const content = event.target.value;
+  state.content = content;
+  renderPreview(content);
+  updateDirtyState(true);
+  setStatus('Editando en vivo.', 'neutral');
+});
+
+applyTheme(state.theme);
+updateFileHeader();
+hydrateEditor(INITIAL_CONTENT);
+updateDirtyState(false);
+setStatus('Listo para editar.', 'success');

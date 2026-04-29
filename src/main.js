@@ -2,40 +2,27 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const isMarkdownFile = (fileName) => fileName.toLowerCase().endsWith('.md');
+function normalizeMarkdownName(filePath) {
+  return filePath.toLowerCase().endsWith('.md') ? filePath : `${filePath}.md`;
+}
 
-async function collectMarkdownFiles(dirPath, basePath = dirPath) {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries) {
-    const fullPath = path.join(dirPath, entry.name);
-
-    if (entry.isDirectory()) {
-      const nested = await collectMarkdownFiles(fullPath, basePath);
-      files.push(...nested);
-      continue;
-    }
-
-    if (entry.isFile() && isMarkdownFile(entry.name)) {
-      files.push({
-        name: entry.name,
-        path: fullPath,
-        relativePath: path.relative(basePath, fullPath)
-      });
-    }
-  }
-
-  return files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+function toFilePayload(filePath, content = '') {
+  return {
+    name: path.basename(filePath),
+    path: filePath,
+    directory: path.dirname(filePath),
+    content
+  };
 }
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1440,
     height: 920,
-    minWidth: 1080,
-    minHeight: 720,
-    backgroundColor: '#0f172a',
+    minWidth: 1100,
+    minHeight: 760,
+    backgroundColor: '#08111f',
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -46,41 +33,67 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 }
 
-ipcMain.handle('dialog:pickFolder', async () => {
+ipcMain.handle('dialog:openMarkdownFile', async () => {
   const result = await dialog.showOpenDialog({
-    properties: ['openDirectory']
+    title: 'Abrir archivo Markdown',
+    properties: ['openFile'],
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
   });
 
   if (result.canceled || result.filePaths.length === 0) {
     return null;
   }
 
-  const folderPath = result.filePaths[0];
-  const files = await collectMarkdownFiles(folderPath);
+  const filePath = result.filePaths[0];
+  const content = await fs.readFile(filePath, 'utf8');
 
-  return { folderPath, files };
+  return toFilePayload(filePath, content);
 });
 
 ipcMain.handle('markdown:readFile', async (_, filePath) => {
-  return fs.readFile(filePath, 'utf8');
+  const content = await fs.readFile(filePath, 'utf8');
+  return toFilePayload(filePath, content);
 });
 
 ipcMain.handle('markdown:saveFile', async (_, { filePath, content }) => {
   await fs.writeFile(filePath, content, 'utf8');
-  return { ok: true };
+  return toFilePayload(filePath, content);
 });
 
-ipcMain.handle('markdown:createFile', async (_, { folderPath, fileName }) => {
-  const normalizedName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
-  const filePath = path.join(folderPath, normalizedName);
+ipcMain.handle('markdown:saveAsFile', async (_, { suggestedName, content }) => {
+  const result = await dialog.showSaveDialog({
+    title: 'Guardar archivo Markdown',
+    defaultPath: normalizeMarkdownName(suggestedName || 'nuevo-archivo.md'),
+    filters: [{ name: 'Markdown', extensions: ['md'] }]
+  });
 
-  await fs.writeFile(filePath, '# Nuevo archivo\n', { flag: 'wx' });
+  if (result.canceled || !result.filePath) {
+    return null;
+  }
 
-  return {
-    name: path.basename(filePath),
-    path: filePath,
-    relativePath: path.relative(folderPath, filePath)
-  };
+  const filePath = normalizeMarkdownName(result.filePath);
+  await fs.writeFile(filePath, content, 'utf8');
+
+  return toFilePayload(filePath, content);
+});
+
+ipcMain.handle('markdown:createFile', async () => {
+  const defaultContent = '# Nuevo documento\n\nEmpezá a escribir tu Markdown.\n';
+
+  const result = await dialog.showSaveDialog({
+    title: 'Crear archivo Markdown',
+    defaultPath: 'nuevo-documento.md',
+    filters: [{ name: 'Markdown', extensions: ['md'] }]
+  });
+
+  if (result.canceled || !result.filePath) {
+    return null;
+  }
+
+  const filePath = normalizeMarkdownName(result.filePath);
+  await fs.writeFile(filePath, defaultContent, { flag: 'w' });
+
+  return toFilePayload(filePath, defaultContent);
 });
 
 app.whenReady().then(() => {

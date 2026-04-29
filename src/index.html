@@ -1,50 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>md.desktop</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-theme="dark">
     <div class="app-shell">
-      <aside class="sidebar">
-        <div class="sidebar__header">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Markdown Studio</p>
           <h1>md.desktop</h1>
-          <p>Markdown local para Windows</p>
+          <p class="topbar__subtitle">Abrí, editá y previsualizá archivos Markdown en una experiencia más limpia.</p>
         </div>
 
-        <div class="sidebar__actions">
-          <button id="open-folder">Abrir carpeta</button>
-          <button id="new-file" class="button-secondary">Nuevo .md</button>
+        <div class="topbar__actions">
+          <button id="open-file" class="button-secondary">Abrir .md</button>
+          <button id="new-file" class="button-secondary">Nuevo</button>
+          <button id="toggle-theme" class="button-ghost" aria-label="Cambiar tema">🌙</button>
+          <button id="save-file">Guardar</button>
+        </div>
+      </header>
+
+      <section class="hero-card">
+        <div class="hero-card__meta">
+          <span class="badge" id="theme-badge">Modo oscuro</span>
+          <span class="badge badge--muted" id="save-badge">Sin cambios guardados</span>
         </div>
 
-        <div class="sidebar__meta">
-          <span id="folder-path">Ninguna carpeta abierta</span>
-        </div>
+        <div class="hero-card__content">
+          <div>
+            <h2 id="current-file">Sin archivo abierto</h2>
+            <p id="file-path">Abrí un archivo .md o creá uno nuevo para empezar.</p>
+          </div>
 
-        <ul id="file-list" class="file-list"></ul>
-      </aside>
+          <div class="hero-card__stats">
+            <div class="stat-card">
+              <span>Palabras</span>
+              <strong id="word-count">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Caracteres</span>
+              <strong id="char-count">0</strong>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <main class="workspace">
-        <header class="workspace__header">
-          <div>
-            <h2 id="current-file">Seleccioná un archivo</h2>
-            <p id="status">Abrí una carpeta para empezar.</p>
-          </div>
-          <button id="save-file">Guardar</button>
-        </header>
-
-        <section class="panes">
-          <div class="pane pane--editor">
-            <label for="editor">Editor</label>
-            <textarea id="editor" placeholder="# Escribí tu Markdown acá"></textarea>
+        <section class="pane pane--editor">
+          <div class="pane__header">
+            <div>
+              <p class="eyebrow">Editor</p>
+              <h3>Escribí Markdown</h3>
+            </div>
+            <p id="status" class="status">Listo para editar.</p>
           </div>
 
-          <div class="pane pane--preview">
-            <label>Preview</label>
-            <article id="preview" class="preview"></article>
+          <textarea id="editor" spellcheck="false" placeholder="# Escribí tu Markdown acá"></textarea>
+        </section>
+
+        <section class="pane pane--preview">
+          <div class="pane__header">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h3>Resultado en tiempo real</h3>
+            </div>
+            <span class="live-dot">● Live</span>
           </div>
+
+          <article id="preview" class="preview"></article>
         </section>
       </main>
     </div>
