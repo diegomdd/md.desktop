@@ -1,0 +1,24 @@
+{
+  "name": "md.desktop",
+  "version": "0.1.0",
+  "description": "Native desktop Markdown editor and viewer for Windows",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "keywords": [
+    "markdown",
+    "electron",
+    "desktop",
+    "windows"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "marked": "^16.4.0"
+  },
+  "devDependencies": {
+    "electron": "^38.3.0"
+  }
+}

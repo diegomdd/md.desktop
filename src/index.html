@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>md.desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar__header">
+          <h1>md.desktop</h1>
+          <p>Markdown local para Windows</p>
+        </div>
+
+        <div class="sidebar__actions">
+          <button id="open-folder">Abrir carpeta</button>
+          <button id="new-file" class="button-secondary">Nuevo .md</button>
+        </div>
+
+        <div class="sidebar__meta">
+          <span id="folder-path">Ninguna carpeta abierta</span>
+        </div>
+
+        <ul id="file-list" class="file-list"></ul>
+      </aside>
+
+      <main class="workspace">
+        <header class="workspace__header">
+          <div>
+            <h2 id="current-file">Seleccioná un archivo</h2>
+            <p id="status">Abrí una carpeta para empezar.</p>
+          </div>
+          <button id="save-file">Guardar</button>
+        </header>
+
+        <section class="panes">
+          <div class="pane pane--editor">
+            <label for="editor">Editor</label>
+            <textarea id="editor" placeholder="# Escribí tu Markdown acá"></textarea>
+          </div>
+
+          <div class="pane pane--preview">
+            <label>Preview</label>
+            <article id="preview" class="preview"></article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="../node_modules/marked/lib/marked.umd.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
